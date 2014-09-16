@@ -2,6 +2,7 @@ import sys
 import logging
 from log import set_logger
 import pkg_resources
+import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ def main():
 
     # then, we output the result user set just
     LOG.info('Stage: Setup validation\n')
+    utils.fmt_print('--== CONFIGURATION PREVIEW ==--')
     for c in cfgs:
         cfgs[c].validation(user_conf)
 
