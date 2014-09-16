@@ -1,6 +1,9 @@
 import utils
 import logging
 import glob
+import getpass
+import commands
+import os
 
 LOG = logging.getLogger(__name__)
 
@@ -143,5 +146,56 @@ def make_hostname(cfgs):
     cfgs[2] = ESCFG('setup hostname of this host')
 
 
+def config_cinder(user_conf):
+    cinder_vg_found = False
+    (status, out) = commands.getstatusoutput('vgs')
+    if status == 0:
+        for i in out.split('\n'):
+            if i.split()[0] == 'cinder-volumes':
+                cinder_vg_found = True
+    if not cinder_vg_found:
+        LOG.warn('There is no cinder-volumes')
+        txt = 'Do you want to config cinder VG (yes, no)[yes]: '
+        cfg_cinder = _ask_user(('yes, no'), 'yes', txt)
+        if cfg_cinder.lower() == 'yes':
+            txt = 'Please input device name you want to config as cinder device: '
+            cinder_dev = _ask_user(None, None, txt, check=lambda x: os.path.exists(x))
+            user_conf['cinder_dev'] = cinder_dev
+            # (status, out) = commands.getstatusoutput('pvcreate %s' % cinder_dev)
+            # if status == 0:
+            #     (status1, out1) = commands.getstatusoutput('vgcreate cinder-volumes %s' % cinder_dev)
+            #     if status != 0:
+            #         LOG.warn(out1)
+            # else:
+            #     LOG.warn(out)
+
+
 def make_openstack(cfgs):
-    cfgs[3] = ESCFG('config openstack component')
+    def ask_user(user_conf):
+        LOG.info('Stage: openstack configure\n')
+        utils.fmt_print('==== OPENSTACK CONFIGURATE ====')
+        while True:
+            # fmt_print('Confirm admin password:')
+            txt = 'The password to use for the Keystone admin user: '
+            pwd = getpass.getpass(utils.fmt_msg(txt))
+            if not pwd:
+                continue
+            else:
+                txt2 = 'Confirm admin password: '
+                pwd2 = getpass.getpass(utils.fmt_msg(txt2))
+                if pwd == pwd2:
+                    user_conf['os_pwd'] = pwd
+                    break
+                else:
+                    utils.fmt_print('Sorry, passwords do not match')
+
+        # cinder config
+        config_cinder(user_conf)
+
+    def validation(user_conf):
+        pass
+
+    ec = ESCFG('setup openstack of this host')
+    ec.ask_user = ask_user
+    ec.validation = validation
+    cfgs[3] = ec
