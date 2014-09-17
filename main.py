@@ -34,8 +34,10 @@ def main():
     for c in cfgs:
         cfgs[c].validation(user_conf)
 
-    # txt = 'Please confirm installation settings (OK, Cancel) [OK]: '
-    # confirm = _ask_user(('yes, no'), 'yes', txt)
+    txt = 'Please confirm installation settings (OK, Cancel) [OK]: '
+    confirm = utils.ask_user(txt, ('ok, cancel'), 'ok')
+    if confirm.lower() == 'cancel':
+        sys.exit()
 
     # last, run every configuration module to setup
     for c in cfgs:

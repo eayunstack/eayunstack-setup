@@ -41,7 +41,7 @@ def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,
                 if err_promtp:
                     fmt_print(err_promtp)
                 else:
-                    fmt_print('you must input one of %s', accept_value)
+                    fmt_print('you must input one of %s' % accept_value)
                 continue
         else:
             # if value is null and there is no default value, ignore
