@@ -93,9 +93,13 @@ def make_network(cfgs):
                     check=_check_netmask(user_conf['tun_nic_ip']))
 
         def _ask_ext_nic(user_conf):
+            # TODO: if there is only two nics in this host, the management
+            # nic should be external nic, am i right?
+            if len(nics) == 2:
+                dft_nic = nics[0]
             txt = "which nic do you want to use as external " \
-                  "interface: %s [%s]: " % (nics, nics[2])
-            user_conf['ext_nic'] = utils.ask_user(txt, nics, nics[2])
+                  "interface: %s [%s]: " % (nics, dft_nic)
+            user_conf['ext_nic'] = utils.ask_user(txt, nics, dft_nic)
 
         LOG.info('Stage: network configuration')
         nics = sorted([i.split('/')[4] for i in
@@ -103,7 +107,9 @@ def make_network(cfgs):
         LOG.info('Stage: there are %s nics on this host: %s', len(nics), nics)
         _ask_mgt_nic(user_conf)
         _ask_tun_nic(user_conf)
-        _ask_ext_nic(user_conf)
+        if user_conf['role'] in ('controller', 'network'):
+            # only network node and controller node can config external nic
+            _ask_ext_nic(user_conf)
 
     def validation(user_conf):
         utils.valid_print('Management network', user_conf['mgt_nic'])
@@ -122,7 +128,8 @@ def make_network(cfgs):
             utils.valid_print('Tunnel network netmask',
                               user_conf['tun_nic_netmask'])
 
-        utils.valid_print('External network', user_conf['ext_nic'])
+        if user_conf['role'] in ('controller', 'network'):
+            utils.valid_print('External network', user_conf['ext_nic'])
 
     def run(user_conf):
         def write_cfg(role):
@@ -193,6 +200,10 @@ def config_cinder(user_conf):
 
 def make_openstack(cfgs):
     def ask_user(user_conf):
+        if user_conf['role'] != 'controller':
+            # nothing shoule be done for other kinds of node for now
+            return
+
         LOG.info('Stage: openstack configuration\n')
         utils.fmt_print('==== OPENSTACK CONFIGURATE ====')
         while True:
@@ -217,6 +228,10 @@ def make_openstack(cfgs):
         config_cinder(user_conf)
 
     def validation(user_conf):
+        if user_conf['role'] != 'controller':
+            # nothing shoule be done for other kinds of node
+            return
+
         if 'os_cinder_dev' in user_conf.keys():
             utils.valid_print('cinder device', user_conf['os_cinder_dev'])
         if 'compute_hosts' in user_conf.keys():
