@@ -24,18 +24,18 @@ class ESCFG(object):
 
 def make_role(cfgs):
     def ask_user(user_conf):
-        LOG.info('Stage: role configure\n')
-        utils.fmt_print('==== ROLER CONFIGURATE ====')
-        txt = 'Which roler do you want to configurate this host as? (controller, network, computer) [controller]: '
-        user_conf['roler'] = utils.ask_user(txt, ('controller', 'network', 'computer'), 'controller')
+        LOG.info('Stage: role configuration\n')
+        utils.fmt_print('==== ROLE CONFIGURE ====')
+        txt = 'Which role do you want to configure this host as? (controller, network, computer) [controller]: '
+        user_conf['role'] = utils.ask_user(txt, ('controller', 'network', 'computer'), 'controller')
 
     def validation(user_conf):
-        utils.valid_print('Roler', user_conf['roler'])
+        utils.valid_print('Role', user_conf['role'])
 
     ec = ESCFG('setup role of this host')
     ec.ask_user = ask_user
     ec.validation = validation
-    # do not need run anything for roler config
+    # do not need run anything for role config
 
     cfgs[0] = ec
 
@@ -51,59 +51,59 @@ def make_network(cfgs):
 
     # fuck code, need to be recreated
     def ask_user(user_conf):
-        def _ask(roler):        # roler is one of mgt, tun, ext
+        def _ask(role):        # role is one of mgt, tun, ext
             # TODO: less than 3 nics?
-            if roler == 'mgt':
-                name = 'managerment'
+            if role == 'mgt':
+                name = 'management'
                 index = 0
-            elif roler == 'tun':
+            elif role == 'tun':
                 name = 'tunnel'
                 index = 1
             else:
                 name = 'external'
                 index = 2
-            txt = "which nic you want to be as %s interface: %s [%s]: " % (name, nics, nics[index])
-            user_conf[roler + '_nic'] = utils.ask_user(txt, nics, nics[index])
-            if roler == 'ext':
+            txt = "which nic do you want to use as %s interface: %s [%s]: " % (name, nics, nics[index])
+            user_conf[role + '_nic'] = utils.ask_user(txt, nics, nics[index])
+            if role == 'ext':
                 # we do not need to config this nic
                 return
-            txt = 'Do you want Setup to configure the %s network? (Yes, No) [Yes]: ' % (name)
+            txt = 'Do you want this setup to configure the %s network? (Yes, No) [Yes]: ' % (name)
             confirm = utils.ask_user(txt, ('yes, no'), 'yes')
             if confirm.lower() == 'yes':
-                user_conf['cfg_' + roler] = True  # e.g. user_conf[cfg_mgt]
-                utils.fmt_print('==== NETWORK CONFIG FOR %s INTERFACE ====' %
+                user_conf['cfg_' + role] = True  # e.g. user_conf[cfg_mgt]
+                utils.fmt_print('==== NETWORK CONFIGURATION FOR %s INTERFACE ====' %
                                 (name.upper()))
                 # TODO check netmask, gateway
-                user_conf[roler + '_nic_ip'] = utils.ask_user(
+                user_conf[role + '_nic_ip'] = utils.ask_user(
                     'ip address: ', check=utils.check_ip)
-                user_conf[roler + '_nic_netmask'] = utils.ask_user(
+                user_conf[role + '_nic_netmask'] = utils.ask_user(
                     'netmask [255.255.255.0]: ', default_val='255.255.255.0',
-                    check=_check_netmask(user_conf[roler + '_nic_ip']))
-                if roler == 'mgt':
+                    check=_check_netmask(user_conf[role + '_nic_ip']))
+                if role == 'mgt':
                     default_gw = utils.first_host_in_subnet(
-                        user_conf[roler + '_nic_ip'],
-                        user_conf[roler + '_nic_netmask']
+                        user_conf[role + '_nic_ip'],
+                        user_conf[role + '_nic_netmask']
                     )
-                    user_conf[roler + '_nic_gw'] = utils.ask_user(
+                    user_conf[role + '_nic_gw'] = utils.ask_user(
                         'gateway [%s]: ' % default_gw, default_val=default_gw,
-                        check=_check_gw(user_conf[roler + '_nic_ip'],
-                                        user_conf[roler + '_nic_netmask']))
+                        check=_check_gw(user_conf[role + '_nic_ip'],
+                                        user_conf[role + '_nic_netmask']))
 
-        LOG.info('Stage: network configure')
+        LOG.info('Stage: network configuration')
         nics = sorted([i.split('/')[4] for i in
                        glob.glob('/sys/class/net/*/device')])
         LOG.info('Stage: there are %s nics on this host: %s', len(nics), nics)
-        for roler in ('mgt', 'tun', 'ext'):
-            _ask(roler)
+        for role in ('mgt', 'tun', 'ext'):
+            _ask(role)
 
     def validation(user_conf):
-        utils.valid_print('Managerment network', user_conf['mgt_nic'])
+        utils.valid_print('Management network', user_conf['mgt_nic'])
         if 'cfg_mgt' in user_conf.keys() and user_conf['cfg_mgt']:
-            utils.valid_print('Managerment network IP address',
+            utils.valid_print('Management network IP address',
                               user_conf['mgt_nic_ip'])
-            utils.valid_print('Managerment network netmask',
+            utils.valid_print('Management network netmask',
                               user_conf['mgt_nic_netmask'])
-            utils.valid_print('Managerment network gateway',
+            utils.valid_print('Management network gateway',
                               user_conf['mgt_nic_gw'])
 
         utils.valid_print('Tunnel network', user_conf['tun_nic'])
@@ -116,7 +116,7 @@ def make_network(cfgs):
         utils.valid_print('External network', user_conf['ext_nic'])
 
     def run(user_conf):
-        def write_cfg(roler):
+        def write_cfg(role):
             CFG_FILE = '/etc/sysconfig/network-scripts/_ifcfg-%s'
             CFG_FMT = """# Created by es-setup
 DEVICE=%s
@@ -126,15 +126,15 @@ NETMASK=%s
 ONBOOT=yes
 """
             CFG_VAL = [
-                user_conf[roler + '_nic'],
-                utils.get_hwaddr(user_conf[roler + '_nic']),
-                user_conf[roler + '_nic_ip'],
-                user_conf[roler + '_nic_netmask']]
+                user_conf[role + '_nic'],
+                utils.get_hwaddr(user_conf[role + '_nic']),
+                user_conf[role + '_nic_ip'],
+                user_conf[role + '_nic_netmask']]
 
-            if roler == 'mgt':
-                CFG_VAL.append(user_conf[roler + '_nic_gw'])
+            if role == 'mgt':
+                CFG_VAL.append(user_conf[role + '_nic_gw'])
                 CFG_FMT += "GATEWAY=%s\n"
-            with file(CFG_FILE % user_conf[roler + '_nic'], 'w') as f:
+            with file(CFG_FILE % user_conf[role + '_nic'], 'w') as f:
                 f.write(CFG_FMT % tuple(CFG_VAL))
 
         if 'cfg_mgt' in user_conf.keys() and user_conf['cfg_mgt']:
@@ -154,18 +154,19 @@ def make_hostname(cfgs):
 
 
 def config_cinder(user_conf):
+    CINDER_VOLUME_NAME = 'cinder-volumes'
     cinder_vg_found = False
     (status, out) = commands.getstatusoutput('vgs')
     if status == 0:
         for i in out.split('\n'):
-            if i.split()[0] == 'cinder-volumes':
+            if i.split()[0] == CINDER_VOLUME_NAME:
                 cinder_vg_found = True
     if not cinder_vg_found:
-        LOG.warn('There is no cinder-volumes')
-        txt = 'Do you want to config cinder VG (yes, no) [yes]: '
+        LOG.warn('No cinder volume group(%s) found' % CINDER_VOLUME_NAME)
+        txt = 'Do you want to create cinder volume group now(yes, no) [yes]: '
         cfg_cinder = utils.ask_user(txt, ('yes, no'), 'yes')
         if cfg_cinder.lower() == 'yes':
-            txt = 'Please input device name you want to config as cinder device: '
+            txt = 'Please input the name of the device you want to use for cinder:'
             cinder_dev = utils.ask_user(txt, check=lambda x: os.path.exists(x))
             user_conf['os_cinder_dev'] = cinder_dev
             # (status, out) = commands.getstatusoutput('pvcreate %s' % cinder_dev)
@@ -179,11 +180,11 @@ def config_cinder(user_conf):
 
 def make_openstack(cfgs):
     def ask_user(user_conf):
-        LOG.info('Stage: openstack configure\n')
+        LOG.info('Stage: openstack configuration\n')
         utils.fmt_print('==== OPENSTACK CONFIGURATE ====')
         while True:
             # fmt_print('Confirm admin password:')
-            txt = 'The password to use for the Keystone admin user: '
+            txt = 'The password to use for keystone admin user: '
             pwd = getpass.getpass(utils.fmt_msg(txt))
             if not pwd:
                 continue
@@ -196,7 +197,7 @@ def make_openstack(cfgs):
                 else:
                     utils.fmt_print('Sorry, passwords do not match')
 
-        compute_hosts_txt = 'IP adresses of compute hosts(separated by ",", eg "10.10.1.2,10.10.1.3"): '
+        compute_hosts_txt = "IP adresses of compute hosts(separated by ',', eg '10.10.1.2,10.10.1.3'): "
         user_conf['compute_hosts'] = utils.ask_user(compute_hosts_txt, check=utils.check_ip_list)
 
         # cinder config
@@ -209,9 +210,9 @@ def make_openstack(cfgs):
             utils.valid_print('compute hosts', user_conf['compute_hosts'])
 
     def run(user_conf):
-        if user_conf['roler'] == 'controller':
+        if user_conf['role'] == 'controller':
             ANSWER_FILE = '/tmp/eayunstack.answer'
-            # Generate answer file with packstack
+            # Generate answer file with packstack.
             os.system('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
             # All opitons needed to update are here.
             configs = {'config_swift_install': 'n',
@@ -239,7 +240,7 @@ def make_openstack(cfgs):
             os.system('/usr/bin/cp %s %s' % (ANSWER_FILE, '~/.eayunstack.answer'))
             # Invoke packstack
             # os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
-        elif user_conf['roler'] == 'compute':
+        elif user_conf['role'] == 'compute':
             # Don't handle compute roles at present.
             pass
         else:

@@ -7,7 +7,7 @@ import excp
 
 LOG = logging.getLogger(__name__)
 
-# save all config value user provides
+# save all configuration values provided by user.
 user_conf = dict()
 
 
