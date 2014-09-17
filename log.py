@@ -48,8 +48,8 @@ def color_format():
     Main entry point to get a colored formatter, it will use the
     BASE_FORMAT by default.
     """
-    color_format = color_message(BASE_COLOR_FORMAT)
-    return ColoredFormatter(color_format)
+    color_fmt = color_message(BASE_COLOR_FORMAT)
+    return ColoredFormatter(color_fmt)
 
 
 def set_logger():

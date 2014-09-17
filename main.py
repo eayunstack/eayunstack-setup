@@ -18,7 +18,7 @@ def main():
     entry_points = [
         (e.name, e.load()) for e in pkg_resources.iter_entry_points('cfg')
     ]
-    for (name, fn) in entry_points:
+    for (_, fn) in entry_points:
         fn(cfgs)
 
     cfgs = dict(sorted(cfgs.iteritems(), key=lambda cfgs: cfgs[0]))  # sort

@@ -38,11 +38,11 @@ def is_netmask(n):
     http://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightModLookup.
     """
     nn = n >> MOD37_BIT_POSITION[(-n & n) % 37]
-    return (n < 0 and (nn & (nn + 1)) == 0)
+    return n < 0 and (nn & (nn + 1)) == 0
 
 
 def is_ip(n):
-    return (n != 0 and not is_netmask(n))
+    return n != 0 and not is_netmask(n)
 
 
 def check_ip(value):
@@ -69,7 +69,7 @@ def check_gw_with_ip_and_netmask(value, ip_str, netmask_str):
     if is_ip(ip) and is_netmask(netmask) and is_ip(gw):
         same_subnet = (ip & netmask) == (gw & netmask)
         different_host = (ip & ~netmask) != (gw & ~netmask)
-        return (same_subnet and different_host)
+        return same_subnet and different_host
     return False
 
 
@@ -116,5 +116,5 @@ def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,
 
 def get_hwaddr(ifname):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', ifname[:15]))
+    info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', ifname[:15]))
     return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
