@@ -105,37 +105,31 @@ def make_network(cfgs):
         utils.valid_print('External network', user_conf['ext_nic'])
 
     def run(user_conf):
-        # TODO: mac address?
-        CFG_FILE = '/etc/sysconfig/network-scripts/_ifcfg-%s'
-        MGT_FMT = """# Created by es-setup
+        def write_cfg(roler):
+            CFG_FILE = '/etc/sysconfig/network-scripts/_ifcfg-%s'
+            CFG_FMT = """# Created by es-setup
 DEVICE=%s
 HWADDR=%s
 IPADDR=%s
-GATEWAY=%s
 NETMASK=%s
 ONBOOT=yes
 """
-        with file(CFG_FILE % user_conf['mgt_nic'], 'w') as f:
-            f.write(MGT_FMT % (
-                user_conf['mgt_nic'],
-                utils.get_hwaddr(user_conf['mgt_nic']),
-                user_conf['mgt_nic_ip'],
-                user_conf['mgt_nic_gw'],
-                user_conf['mgt_nic_netmask']))
+            CFG_VAL = [
+                user_conf[roler + '_nic'],
+                utils.get_hwaddr(user_conf[roler + '_nic']),
+                user_conf[roler + '_nic_ip'],
+                user_conf[roler + '_nic_netmask']]
 
-        TUN_FMT = """# Created by es-setup
-DEVICE=%s
-HWADDR=%s
-IPADDR=%s
-NETMASK=%s
-ONBOOT=yes
-"""
-        with file(CFG_FILE % user_conf['tun_nic'], 'w') as f:
-            f.write(TUN_FMT % (
-                user_conf['mgt_nic'],
-                utils.get_hwaddr(user_conf['tun_nic']),
-                user_conf['mgt_nic_ip'],
-                user_conf['mgt_nic_netmask']))
+            if roler == 'mgt':
+                CFG_VAL.append(user_conf[roler + '_nic_gw'])
+                CFG_FMT += "GATEWAY=%s\n"
+            with file(CFG_FILE % user_conf[roler + '_nic'], 'w') as f:
+                f.write(CFG_FMT % tuple(CFG_VAL))
+
+        if 'cfg_mgt' in user_conf.keys() and user_conf['cfg_mgt']:
+            write_cfg('mgt')
+        if 'cfg_tun' in user_conf.keys() and user_conf['cfg_tun']:
+            write_cfg('tun')
 
     ec = ESCFG('setup network of this host')
     ec.ask_user = ask_user
