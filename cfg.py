@@ -4,6 +4,7 @@ import glob
 import getpass
 import commands
 import os
+from ConfigParser import SafeConfigParser
 
 LOG = logging.getLogger(__name__)
 
@@ -196,14 +197,58 @@ def make_openstack(cfgs):
                 else:
                     utils.fmt_print('Sorry, passwords do not match')
 
+        compute_hosts_txt = 'IP adresses of compute hosts(separated by ",", eg "10.10.1.2,10.10.1.3"): '
+        user_conf['compute_hosts'] = utils.ask_user(compute_hosts_txt, check=utils.check_ip_list)
+
         # cinder config
         config_cinder(user_conf)
 
     def validation(user_conf):
         if 'os_cinder_dev' in user_conf.keys():
             utils.valid_print('cinder device', user_conf['os_cinder_dev'])
+        if 'compute_hosts' in user_conf.keys():
+            utils.valid_print('compute hosts', user_conf['compute_hosts'])
+
+    def run(user_conf):
+        if user_conf['roler'] == 'controller':
+            ANSWER_FILE = '/tmp/eayunstack.answer'
+            # Generate answer file with packstack
+            os.system('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
+            # All opitons needed to update are here.
+            configs = {'config_swift_install': 'n',
+                       'config_controller_host': user_conf['mgt_nic_ip'],
+                       'config_compute_hosts': user_conf['compute_hosts'],
+                       'config_network_hosts': user_conf['mgt_nic_ip'],
+                       'config_use_epel': 'n',
+                       'config_amqp_host': user_conf['mgt_nic_ip'],
+                       'config_mysql_host': user_conf['mgt_nic_ip'],
+                       'config_cinder_volumes_create': 'n',
+                       'config_neutron_ml2_type_drivers': 'gre',
+                       'config_neutron_ml2_tenant_network_types': 'gre',
+                       'config_neutron_ml2_tunnel_id_ranges': '1:1000',
+                       'config_neutron_ovs_tenant_network_type': 'gre',
+                       'config_neutron_ovs_bridge_ifaces': 'br-ex:%s' % user_conf['ext_nic'],
+                       'config_neutron_ovs_tunnel_ranges': '1:1000',
+                       'config_neutron_ovs_tunnel_if': user_conf['tun_nic'],
+                       'config_provision_demo': 'n',
+                       'config_mongodb_host': user_conf['mgt_nic_ip'],
+                       'config_keystone_admin_pw': user_conf['os_pwd']}
+            for option in configs:
+                # Update options
+                os.system('/usr/bin/openstack-config --set %s general %s %s' % (ANSWER_FILE, option, configs[option]))
+            # Save answer file
+            os.system('/usr/bin/cp %s %s' % (ANSWER_FILE, '~/.eayunstack.answer'))
+            # Invoke packstack
+            # os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
+        elif user_conf['roler'] == 'compute':
+            # Don't handle compute roles at present.
+            pass
+        else:
+            # Don't handle other roles at present.
+            pass
 
     ec = ESCFG('setup openstack of this host')
     ec.ask_user = ask_user
     ec.validation = validation
+    ec.run = run
     cfgs[3] = ec

@@ -73,6 +73,16 @@ def check_gw_with_ip_and_netmask(value, ip_str, netmask_str):
     return False
 
 
+def check_ip_list(value):
+    if ',' in value:
+        for i in value.split(','):
+            if not check_ip(i):
+                return False
+        return True
+    else:
+        return check_ip(value)
+
+
 def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,
              check=None):
     """ ask user, then get a config value, note: accept must be lower case """
