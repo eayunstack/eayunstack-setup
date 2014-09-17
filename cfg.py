@@ -4,7 +4,6 @@ import glob
 import getpass
 import commands
 import os
-from ConfigParser import SafeConfigParser
 
 LOG = logging.getLogger(__name__)
 
