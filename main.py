@@ -3,6 +3,7 @@ import logging
 from log import set_logger
 import pkg_resources
 import utils
+import excp
 
 LOG = logging.getLogger(__name__)
 
@@ -10,6 +11,7 @@ LOG = logging.getLogger(__name__)
 user_conf = dict()
 
 
+@excp.catches((KeyboardInterrupt, RuntimeError))
 def main():
     set_logger()
     cfgs = dict()
