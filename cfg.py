@@ -157,7 +157,7 @@ def config_cinder(user_conf):
                 cinder_vg_found = True
     if not cinder_vg_found:
         LOG.warn('There is no cinder-volumes')
-        txt = 'Do you want to config cinder VG (yes, no)[yes]: '
+        txt = 'Do you want to config cinder VG (yes, no) [yes]: '
         cfg_cinder = utils.ask_user(txt, ('yes, no'), 'yes')
         if cfg_cinder.lower() == 'yes':
             txt = 'Please input device name you want to config as cinder device: '
