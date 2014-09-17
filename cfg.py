@@ -155,11 +155,14 @@ def make_hostname(cfgs):
 
 def config_cinder(user_conf):
     CINDER_VOLUME_NAME = 'cinder-volumes'
+    # whether we need to set CONFIG_CINDER_VOLUMES_CREATE yes or no
+    user_conf['os_rdo_cinder'] = True
     cinder_vg_found = False
     (status, out) = commands.getstatusoutput('vgs')
     if status == 0:
         for i in out.split('\n'):
             if i.split()[0] == CINDER_VOLUME_NAME:
+                user_conf['os_cinder'] = False
                 cinder_vg_found = True
     if not cinder_vg_found:
         LOG.warn('No cinder volume group(%s) found' % CINDER_VOLUME_NAME)
@@ -169,6 +172,7 @@ def config_cinder(user_conf):
             txt = 'Please input the name of the device you want to use for cinder:'
             cinder_dev = utils.ask_user(txt, check=lambda x: os.path.exists(x))
             user_conf['os_cinder_dev'] = cinder_dev
+            user_conf['os_rdo_cinder'] = False
             # (status, out) = commands.getstatusoutput('pvcreate %s' % cinder_dev)
             # if status == 0:
             #     (status1, out1) = commands.getstatusoutput('vgcreate cinder-volumes %s' % cinder_dev)
@@ -210,10 +214,34 @@ def make_openstack(cfgs):
             utils.valid_print('compute hosts', user_conf['compute_hosts'])
 
     def run(user_conf):
+        def cinder_create():
+            (status, out) = commands.getstatusoutput(
+                'pvcreate %s' % user_conf['os_cinder_dev'])
+            if status == 0:
+                (status1, out1) = commands.getstatusoutput(
+                    'vgcreate cinder-volumes %s' % user_conf['os_cinder_dev'])
+                if status != 0:
+                    raise RuntimeError('failed to create cinder VG using %s' %
+                                       (user_conf['os_cinder_dev']))
+            else:
+                raise RuntimeError('failed to create cinder PV using %s' %
+                                   (user_conf['os_cinder_dev']))
+                LOG.warn(out)
+
         if user_conf['role'] == 'controller':
             ANSWER_FILE = '/tmp/eayunstack.answer'
             # Generate answer file with packstack.
             os.system('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
+            if 'cfg_mgt' not in user_conf.keys():
+                user_conf['mgt_nic_ip'] = utils.get_ipaddr(user_conf['mgt_nic'])
+
+            # cinder config
+            if user_conf['os_rdo_cinder']:
+                rdo_cinder = 'y'
+            else:
+                cinder_create()
+                rdo_cinder = 'n'
+
             # All opitons needed to update are here.
             configs = {'config_swift_install': 'n',
                        'config_controller_host': user_conf['mgt_nic_ip'],
@@ -222,7 +250,7 @@ def make_openstack(cfgs):
                        'config_use_epel': 'n',
                        'config_amqp_host': user_conf['mgt_nic_ip'],
                        'config_mysql_host': user_conf['mgt_nic_ip'],
-                       'config_cinder_volumes_create': 'n',
+                       'config_cinder_volumes_create': rdo_cinder,
                        'config_neutron_ml2_type_drivers': 'gre',
                        'config_neutron_ml2_tenant_network_types': 'gre',
                        'config_neutron_ml2_tunnel_id_ranges': '1:1000',
