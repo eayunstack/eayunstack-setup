@@ -26,17 +26,8 @@ def make_role(cfgs):
     def ask_user(user_conf):
         LOG.info('Stage: role configure\n')
         utils.fmt_print('==== ROLER CONFIGURATE ====')
-        while True:
-            roler = raw_input(utils.fmt_msg('Which roler do you want to configurate this host as? (controller, network, computer) [controller]: '))
-            if not roler:
-                # default roler is controller
-                roler = 'controller'
-                break
-            elif roler in ('controller', 'network', 'computer'):
-                break
-            else:
-                utils.fmt_print('roler must be controller, network or computer')
-        user_conf['roler'] = roler
+        txt = 'Which roler do you want to configurate this host as? (controller, network, computer) [controller]: '
+        user_conf['roler'] = utils.ask_user(txt, ('controller', 'network', 'computer'), 'controller')
 
     def validation(user_conf):
         utils.valid_print('Roler', user_conf['roler'])
@@ -49,57 +40,30 @@ def make_role(cfgs):
     cfgs[0] = ec
 
 
-def _ask_user(acceptable_value, default_value, prompt_msg, error_promtp_msg=None, check=None):
-    """ ask user, then get a config value """
-    while True:
-        value = raw_input(utils.fmt_msg(prompt_msg))
-
-        if value:
-            # if value is not null and not acceptable, ignore
-            if acceptable_value and value not in acceptable_value:
-                if error_promtp_msg:
-                    utils.fmt_print(error_promtp_msg)
-                continue
-        else:
-            # if value is null and there is no default value, ignore
-            if not default_value:
-                if error_promtp_msg:
-                    utils.fmt_print(error_promtp_msg)
-                continue
-            else:
-                value = default_value
-        # if it is running here, it indicate that we get a acceptable value
-        if check and not check(value):
-            LOG.warn('value is not valid, please input again')
-            continue
-
-        return value
-
-
 def make_network(cfgs):
     def ask_user(user_conf):
         LOG.info('Stage: network configure')
         nics = sorted([i.split('/')[4] for i in
                        glob.glob('/sys/class/net/*/device')])
-        LOG.info('Stage: there are %s nics on this host: %s\n', len(nics), nics)
+        LOG.info('Stage: there are %s nics on this host: %s', len(nics), nics)
 
-        utils.fmt_print('==== NETWORK CONFIG FOR MANAGEMENT INTERFACE ====\n')
+        utils.fmt_print('\n==== NETWORK CONFIG FOR MANAGEMENT INTERFACE ====')
         # TODO check netmask, gateway
         mgt_txt = "which nic you want to be as manager interface: %s [%s]: " % (nics, nics[0])
-        user_conf['mgt_nic'] = _ask_user(nics, nics[0], mgt_txt)
-        user_conf['mgt_nic_ip'] = _ask_user(None, None, 'ip address: ', check=utils.check_ip)
-        user_conf['mgt_nic_netmask'] = _ask_user(None, '255.255.255.0', 'netmask [255.255.255.0]: ')
-        user_conf['mgt_nic_gw'] = _ask_user(None, None, 'gateway: ')
+        user_conf['mgt_nic'] = utils.ask_user(mgt_txt, nics, nics[0])
+        user_conf['mgt_nic_ip'] = utils.ask_user('ip address: ', check=utils.check_ip)
+        user_conf['mgt_nic_netmask'] = utils.ask_user('netmask [255.255.255.0]: ', default_val='255.255.255.0',)
+        user_conf['mgt_nic_gw'] = utils.ask_user('gateway: ')
 
-        utils.fmt_print('==== NETWORK CONFIG FOR TUNNEL INTERFACE ====\n')
+        utils.fmt_print('\n==== NETWORK CONFIG FOR TUNNEL INTERFACE ====')
         tun_txt = "which nic you want to be as tunnel interface: %s [%s]: " % (nics, nics[1])
-        user_conf['tun_nic'] = _ask_user(nics, nics[1], tun_txt)
-        user_conf['tun_nic_ip'] = _ask_user(None, None, 'ip address: ', check=utils.check_ip)
-        user_conf['tun_nic_netmask'] = _ask_user(None, '255.255.255.0', 'netmask [255.255.255.0]: ')
+        user_conf['tun_nic'] = utils.ask_user(tun_txt, nics, nics[1],)
+        user_conf['tun_nic_ip'] = utils.ask_user('ip address: ', check=utils.check_ip)
+        user_conf['tun_nic_netmask'] = utils.ask_user('netmask [255.255.255.0]: ', default_val='255.255.255.0')
 
-        utils.fmt_print('==== NETWORK CONFIG FOR EXTERNAL INTERFACE ====\n')
+        utils.fmt_print('\n==== NETWORK CONFIG FOR EXTERNAL INTERFACE ====')
         ext_txt = "which nic you want to be as external interface: %s [%s]: " % (nics, nics[2])
-        user_conf['ext_nic'] = _ask_user(nics, nics[2], ext_txt)
+        user_conf['ext_nic'] = utils.ask_user(ext_txt, nics, nics[2])
 
     def validation(user_conf):
         utils.valid_print('Managerment network', user_conf['mgt_nic'])
@@ -156,11 +120,11 @@ def config_cinder(user_conf):
     if not cinder_vg_found:
         LOG.warn('There is no cinder-volumes')
         txt = 'Do you want to config cinder VG (yes, no)[yes]: '
-        cfg_cinder = _ask_user(('yes, no'), 'yes', txt)
+        cfg_cinder = utils.ask_user(txt, ('yes, no'), 'yes')
         if cfg_cinder.lower() == 'yes':
             txt = 'Please input device name you want to config as cinder device: '
-            cinder_dev = _ask_user(None, None, txt, check=lambda x: os.path.exists(x))
-            user_conf['cinder_dev'] = cinder_dev
+            cinder_dev = utils.ask_user(txt, check=lambda x: os.path.exists(x))
+            user_conf['os_cinder_dev'] = cinder_dev
             # (status, out) = commands.getstatusoutput('pvcreate %s' % cinder_dev)
             # if status == 0:
             #     (status1, out1) = commands.getstatusoutput('vgcreate cinder-volumes %s' % cinder_dev)
@@ -193,7 +157,8 @@ def make_openstack(cfgs):
         config_cinder(user_conf)
 
     def validation(user_conf):
-        pass
+        if 'os_cinder_dev' in user_conf.keys():
+            utils.valid_print('cinder device', user_conf['os_cinder_dev'])
 
     ec = ESCFG('setup openstack of this host')
     ec.ask_user = ask_user
