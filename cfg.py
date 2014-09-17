@@ -51,50 +51,59 @@ def make_network(cfgs):
 
     # fuck code, need to be recreated
     def ask_user(user_conf):
-        def _ask(role):        # role is one of mgt, tun, ext
-            # TODO: less than 3 nics?
-            if role == 'mgt':
-                name = 'management'
-                index = 0
-            elif role == 'tun':
-                name = 'tunnel'
-                index = 1
-            else:
-                name = 'external'
-                index = 2
-            txt = "which nic do you want to use as %s interface: %s [%s]: " % (name, nics, nics[index])
-            user_conf[role + '_nic'] = utils.ask_user(txt, nics, nics[index])
-            if role == 'ext':
-                # we do not need to config this nic
-                return
-            txt = 'Do you want this setup to configure the %s network? (Yes, No) [Yes]: ' % (name)
+        def _ask_mgt_nic(user_conf):
+            txt = "which nic do you want to use as management " \
+                  "interface: %s [%s]: " % (nics, nics[0])
+            user_conf['mgt_nic'] = utils.ask_user(txt, nics, nics[0])
+            txt = "Do you want this setup to configure the management " \
+                  "network? (Yes, No) [Yes]: "
             confirm = utils.ask_user(txt, ('yes, no'), 'yes')
             if confirm.lower() == 'yes':
-                user_conf['cfg_' + role] = True  # e.g. user_conf[cfg_mgt]
-                utils.fmt_print('==== NETWORK CONFIGURATION FOR %s INTERFACE ====' %
-                                (name.upper()))
-                # TODO check netmask, gateway
-                user_conf[role + '_nic_ip'] = utils.ask_user(
+                user_conf['cfg_mgt'] = True
+                utils.fmt_print("==== NETWORK CONFIGURATION FOR MANAGEMENT "
+                                "INTERFACE ====")
+                user_conf['mgt_nic_ip'] = utils.ask_user(
                     'ip address: ', check=utils.check_ip)
-                user_conf[role + '_nic_netmask'] = utils.ask_user(
+                user_conf['mgt_nic_netmask'] = utils.ask_user(
                     'netmask [255.255.255.0]: ', default_val='255.255.255.0',
-                    check=_check_netmask(user_conf[role + '_nic_ip']))
-                if role == 'mgt':
-                    default_gw = utils.first_host_in_subnet(
-                        user_conf[role + '_nic_ip'],
-                        user_conf[role + '_nic_netmask']
-                    )
-                    user_conf[role + '_nic_gw'] = utils.ask_user(
-                        'gateway [%s]: ' % default_gw, default_val=default_gw,
-                        check=_check_gw(user_conf[role + '_nic_ip'],
-                                        user_conf[role + '_nic_netmask']))
+                    check=_check_netmask(user_conf['mgt_nic_ip']))
+                default_gw = utils.first_host_in_subnet(
+                    user_conf['mgt_nic_ip'],
+                    user_conf['mgt_nic_netmask'])
+                user_conf['mgt_nic_gw'] = utils.ask_user(
+                    'gateway [%s]: ' % default_gw, default_val=default_gw,
+                    check=_check_gw(user_conf['mgt_nic_ip'],
+                                    user_conf['mgt_nic_netmask']))
+
+        def _ask_tun_nic(user_conf):
+            txt = "which nic do you want to use as tunnel " \
+                  "interface: %s [%s]: " % (nics, nics[1])
+            user_conf['tun_nic'] = utils.ask_user(txt, nics, nics[1])
+            txt = "Do you want this setup to configure the tunnel " \
+                  "network? (Yes, No) [Yes]: "
+            confirm = utils.ask_user(txt, ('yes, no'), 'yes')
+            if confirm.lower() == 'yes':
+                user_conf['cfg_tun'] = True
+                utils.fmt_print("==== NETWORK CONFIGURATION FOR TUNNEL "
+                                "INTERFACE ====")
+                user_conf['tun_nic_ip'] = utils.ask_user(
+                    'ip address: ', check=utils.check_ip)
+                user_conf['tun_nic_netmask'] = utils.ask_user(
+                    'netmask [255.255.255.0]: ', default_val='255.255.255.0',
+                    check=_check_netmask(user_conf['tun_nic_ip']))
+
+        def _ask_ext_nic(user_conf):
+            txt = "which nic do you want to use as external " \
+                  "interface: %s [%s]: " % (nics, nics[2])
+            user_conf['ext_nic'] = utils.ask_user(txt, nics, nics[2])
 
         LOG.info('Stage: network configuration')
         nics = sorted([i.split('/')[4] for i in
                        glob.glob('/sys/class/net/*/device')])
         LOG.info('Stage: there are %s nics on this host: %s', len(nics), nics)
-        for role in ('mgt', 'tun', 'ext'):
-            _ask(role)
+        _ask_mgt_nic(user_conf)
+        _ask_tun_nic(user_conf)
+        _ask_ext_nic(user_conf)
 
     def validation(user_conf):
         utils.valid_print('Management network', user_conf['mgt_nic'])
@@ -169,7 +178,7 @@ def config_cinder(user_conf):
         txt = 'Do you want to create cinder volume group now(yes, no) [yes]: '
         cfg_cinder = utils.ask_user(txt, ('yes, no'), 'yes')
         if cfg_cinder.lower() == 'yes':
-            txt = 'Please input the name of the device you want to use for cinder:'
+            txt = 'Please input the name of the device you want to use for cinder: '
             cinder_dev = utils.ask_user(txt, check=lambda x: os.path.exists(x))
             user_conf['os_cinder_dev'] = cinder_dev
             user_conf['os_rdo_cinder'] = False
