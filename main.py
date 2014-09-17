@@ -40,6 +40,7 @@ def main():
         sys.exit()
 
     # last, run every configuration module to setup
+    LOG.info('Stage: Transaction setup')
     for c in cfgs:
         cfgs[c].run(user_conf)
 

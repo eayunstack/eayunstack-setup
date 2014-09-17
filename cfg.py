@@ -67,7 +67,12 @@ def make_network(cfgs):
 
     def validation(user_conf):
         utils.valid_print('Managerment network', user_conf['mgt_nic'])
+        utils.valid_print('Managerment network IP address', user_conf['mgt_nic_ip'])
+        utils.valid_print('Managerment network netmask', user_conf['mgt_nic_netmask'])
+        utils.valid_print('Managerment network gateway', user_conf['mgt_nic_gw'])
         utils.valid_print('Tunnel network', user_conf['tun_nic'])
+        utils.valid_print('Tunnel network IP addres', user_conf['tun_nic_ip'])
+        utils.valid_print('Tunnel network netmask', user_conf['tun_nic_netmask'])
         utils.valid_print('External network', user_conf['ext_nic'])
 
     def run(user_conf):
@@ -75,6 +80,7 @@ def make_network(cfgs):
         CFG_FILE = '/etc/sysconfig/network-scripts/_ifcfg-%s'
         MGT_FMT = """# Created by es-setup
 DEVICE=%s
+HWADDR=%s
 IPADDR=%s
 GATEWAY=%s
 NETMASK=%s
@@ -83,12 +89,14 @@ ONBOOT=yes
         with file(CFG_FILE % user_conf['mgt_nic'], 'w') as f:
             f.write(MGT_FMT % (
                 user_conf['mgt_nic'],
+                utils.get_hwaddr(user_conf['mgt_nic']),
                 user_conf['mgt_nic_ip'],
                 user_conf['mgt_nic_gw'],
                 user_conf['mgt_nic_netmask']))
 
         TUN_FMT = """# Created by es-setup
 DEVICE=%s
+HWADDR=%s
 IPADDR=%s
 NETMASK=%s
 ONBOOT=yes
@@ -96,6 +104,7 @@ ONBOOT=yes
         with file(CFG_FILE % user_conf['tun_nic'], 'w') as f:
             f.write(TUN_FMT % (
                 user_conf['mgt_nic'],
+                utils.get_hwaddr(user_conf['tun_nic']),
                 user_conf['mgt_nic_ip'],
                 user_conf['mgt_nic_netmask']))
 

@@ -1,4 +1,7 @@
 import logging
+import socket
+import fcntl
+import struct
 
 LOG = logging.getLogger(__name__)
 
@@ -14,7 +17,7 @@ def fmt_msg(msg):
 
 
 def valid_print(key, value):
-    fmt_print('%-40s:%s' % (key, value))
+    fmt_print('%-40s: %s' % (key, value))
 
 
 def check_ip(value):
@@ -58,3 +61,9 @@ def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,
             continue
 
         return value
+
+
+def get_hwaddr(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', ifname[:15]))
+    return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
