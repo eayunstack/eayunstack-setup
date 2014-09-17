@@ -41,38 +41,67 @@ def make_role(cfgs):
 
 
 def make_network(cfgs):
+    # fuck code, need to be recreated
     def ask_user(user_conf):
+        def _ask(roler):        # roler is one of mgt, tun, ext
+            # TODO: less than 3 nics?
+            if roler == 'mgt':
+                name = 'managerment'
+                index = 0
+            elif roler == 'tun':
+                name = 'tunnel'
+                index = 1
+            else:
+                name = 'external'
+                index = 2
+            txt = "which nic you want to be as %s interface: %s [%s]: " % (name, nics, nics[index])
+            user_conf[roler + '_nic'] = utils.ask_user(txt, nics, nics[index])
+            if roler == 'ext':
+                # we do not need to config this nic
+                return
+            txt = 'Do you want Setup to configure the %s network? (Yes, No) [Yes]: ' % (name)
+            confirm = utils.ask_user(txt, ('yes, no'), 'yes')
+            if confirm.lower() == 'yes':
+                user_conf['cfg_' + roler] = True  # e.g. user_conf[cfg_mgt]
+                utils.fmt_print('==== NETWORK CONFIG FOR %s INTERFACE ====' %
+                                (name.upper()))
+                # TODO check netmask, gateway
+                user_conf[roler + '_nic_ip'] = utils.ask_user(
+                    'ip address: ', check=utils.check_ip)
+                user_conf[roler + '_nic_netmask'] = utils.ask_user(
+                    'netmask [255.255.255.0]: ', default_val='255.255.255.0')
+                if roler == 'mgt':
+                    # hack: 192.168.3.157 --> 192.168.3.1
+                    default_gw = '.'.join(
+                        i for i in user_conf['mgt_nic_ip'].split('.')[0:3]) + \
+                        '.1'
+                    user_conf[roler + '_nic_gw'] = utils.ask_user(
+                        'gateway [%s]: ' % default_gw, default_val=default_gw)
+
         LOG.info('Stage: network configure')
         nics = sorted([i.split('/')[4] for i in
                        glob.glob('/sys/class/net/*/device')])
         LOG.info('Stage: there are %s nics on this host: %s', len(nics), nics)
-
-        utils.fmt_print('\n==== NETWORK CONFIG FOR MANAGEMENT INTERFACE ====')
-        # TODO check netmask, gateway
-        mgt_txt = "which nic you want to be as manager interface: %s [%s]: " % (nics, nics[0])
-        user_conf['mgt_nic'] = utils.ask_user(mgt_txt, nics, nics[0])
-        user_conf['mgt_nic_ip'] = utils.ask_user('ip address: ', check=utils.check_ip)
-        user_conf['mgt_nic_netmask'] = utils.ask_user('netmask [255.255.255.0]: ', default_val='255.255.255.0',)
-        user_conf['mgt_nic_gw'] = utils.ask_user('gateway: ')
-
-        utils.fmt_print('\n==== NETWORK CONFIG FOR TUNNEL INTERFACE ====')
-        tun_txt = "which nic you want to be as tunnel interface: %s [%s]: " % (nics, nics[1])
-        user_conf['tun_nic'] = utils.ask_user(tun_txt, nics, nics[1],)
-        user_conf['tun_nic_ip'] = utils.ask_user('ip address: ', check=utils.check_ip)
-        user_conf['tun_nic_netmask'] = utils.ask_user('netmask [255.255.255.0]: ', default_val='255.255.255.0')
-
-        utils.fmt_print('\n==== NETWORK CONFIG FOR EXTERNAL INTERFACE ====')
-        ext_txt = "which nic you want to be as external interface: %s [%s]: " % (nics, nics[2])
-        user_conf['ext_nic'] = utils.ask_user(ext_txt, nics, nics[2])
+        for roler in ('mgt', 'tun', 'ext'):
+            _ask(roler)
 
     def validation(user_conf):
         utils.valid_print('Managerment network', user_conf['mgt_nic'])
-        utils.valid_print('Managerment network IP address', user_conf['mgt_nic_ip'])
-        utils.valid_print('Managerment network netmask', user_conf['mgt_nic_netmask'])
-        utils.valid_print('Managerment network gateway', user_conf['mgt_nic_gw'])
+        if 'cfg_mgt' in user_conf.keys() and user_conf['cfg_mgt']:
+            utils.valid_print('Managerment network IP address',
+                              user_conf['mgt_nic_ip'])
+            utils.valid_print('Managerment network netmask',
+                              user_conf['mgt_nic_netmask'])
+            utils.valid_print('Managerment network gateway',
+                              user_conf['mgt_nic_gw'])
+
         utils.valid_print('Tunnel network', user_conf['tun_nic'])
-        utils.valid_print('Tunnel network IP addres', user_conf['tun_nic_ip'])
-        utils.valid_print('Tunnel network netmask', user_conf['tun_nic_netmask'])
+        if 'cfg_tun' in user_conf.keys() and user_conf['cfg_tun']:
+            utils.valid_print('Tunnel network IP addres',
+                              user_conf['tun_nic_ip'])
+            utils.valid_print('Tunnel network netmask',
+                              user_conf['tun_nic_netmask'])
+
         utils.valid_print('External network', user_conf['ext_nic'])
 
     def run(user_conf):
