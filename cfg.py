@@ -95,8 +95,10 @@ def make_network(cfgs):
         def _ask_ext_nic(user_conf):
             # TODO: if there is only two nics in this host, the management
             # nic should be external nic, am i right?
-            if len(nics) == 2:
+            if len(nics) <= 2:
                 dft_nic = nics[0]
+            else:
+                dft_nic = nics[2]
             txt = "which nic do you want to use as external " \
                   "interface: %s [%s]: " % (nics, dft_nic)
             user_conf['ext_nic'] = utils.ask_user(txt, nics, dft_nic)
@@ -133,7 +135,7 @@ def make_network(cfgs):
 
     def run(user_conf):
         def write_cfg(role):
-            CFG_FILE = '/etc/sysconfig/network-scripts/_ifcfg-%s'
+            CFG_FILE = '/etc/sysconfig/network-scripts/ifcfg-%s'
             CFG_FMT = """# Created by es-setup
 DEVICE=%s
 HWADDR=%s
@@ -153,10 +155,28 @@ ONBOOT=yes
             with file(CFG_FILE % user_conf[role + '_nic'], 'w') as f:
                 f.write(CFG_FMT % tuple(CFG_VAL))
 
+        LOG.info('Checking NetworkManager service')
+        (status, out) = commands.getstatusoutput(
+            'systemctl is-active NetworkManager.service')
+        if out == 'active':
+            LOG.info('Stop NetworkManager service')
+            commands.getstatusoutput('systemctl stop NetworkManager.service')
+
+        (status, out) = commands.getstatusoutput(
+            'systemctl is-enabled NetworkManager.service')
+        if out == 'enabled':
+            LOG.info('Disable NetworkManager service')
+            commands.getstatusoutput('systemctl disable NetworkManager.service')
+
+        LOG.info('Write network config file')
         if 'cfg_mgt' in user_conf.keys() and user_conf['cfg_mgt']:
             write_cfg('mgt')
         if 'cfg_tun' in user_conf.keys() and user_conf['cfg_tun']:
             write_cfg('tun')
+        # enable network directly, do we need to check it first?
+        LOG.info('Restart network service')
+        commands.getstatusoutput('systemctl enable network.service')
+        commands.getstatusoutput('systemctl restart network.service')
 
     ec = ESCFG('setup network of this host')
     ec.ask_user = ask_user
