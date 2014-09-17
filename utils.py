@@ -5,6 +5,11 @@ import struct
 
 LOG = logging.getLogger(__name__)
 
+MOD37_BIT_POSITION = [32, 0, 1, 26, 2, 23, 27, 0, 3, 16,
+                      24, 30, 28, 11, 0, 13, 4, 7, 17, 0,
+                      25, 22, 31, 15, 29, 10, 12, 6, 0, 21,
+                      14, 9, 5, 20, 8, 19, 18]
+
 
 def fmt_print(msg):
     fmt = ' ' * 10
@@ -20,16 +25,52 @@ def valid_print(key, value):
     fmt_print('%-40s: %s' % (key, value))
 
 
-def check_ip(value):
+def ip_str_to_num(s):
     try:
-        if len(value.split('.')) != 4:
-            return False
-        for i in value.split('.'):
-            if int(i) < 0 or int(i) > 255:
-                return False
-    except:
-        return False
-    return True
+        return struct.unpack(">l", socket.inet_pton(socket.AF_INET, s))[0]
+    except socket.error:
+        return 0
+
+
+def is_netmask(n):
+    """
+    Bit hack from:
+    http://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightModLookup.
+    """
+    nn = n >> MOD37_BIT_POSITION[(-n & n) % 37]
+    return (n < 0 and (nn & (nn + 1)) == 0)
+
+
+def is_ip(n):
+    return (n != 0 and not is_netmask(n))
+
+
+def check_ip(value):
+    return is_ip(ip_str_to_num(value))
+
+
+def check_mask_with_ip(value, ip_str):
+    ip, netmask = map(ip_str_to_num, [ip_str, value])
+    if is_ip(ip) and is_netmask(netmask):
+        return bool(ip & ~netmask)
+    return False
+
+
+def first_host_in_subnet(ip_str, netmask_str):
+    ip, netmask = map(ip_str_to_num, [ip_str, netmask_str])
+    if is_ip(ip) and is_netmask(netmask):
+        f = (ip & netmask) + 1
+        return socket.inet_ntop(socket.AF_INET, struct.pack(">l", f))
+    return ''
+
+
+def check_gw_with_ip_and_netmask(value, ip_str, netmask_str):
+    ip, netmask, gw = map(ip_str_to_num, [ip_str, netmask_str, value])
+    if is_ip(ip) and is_netmask(netmask) and is_ip(gw):
+        same_subnet = (ip & netmask) == (gw & netmask)
+        different_host = (ip & ~netmask) != (gw & ~netmask)
+        return (same_subnet and different_host)
+    return False
 
 
 def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,

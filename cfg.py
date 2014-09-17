@@ -41,6 +41,14 @@ def make_role(cfgs):
 
 
 def make_network(cfgs):
+    def _check_netmask(ip):
+        f = lambda netmask: utils.check_mask_with_ip(netmask, ip)
+        return f
+
+    def _check_gw(ip, netmask):
+        f = lambda gw: utils.check_gw_with_ip_and_netmask(gw, ip, netmask)
+        return f
+
     # fuck code, need to be recreated
     def ask_user(user_conf):
         def _ask(roler):        # roler is one of mgt, tun, ext
@@ -69,14 +77,17 @@ def make_network(cfgs):
                 user_conf[roler + '_nic_ip'] = utils.ask_user(
                     'ip address: ', check=utils.check_ip)
                 user_conf[roler + '_nic_netmask'] = utils.ask_user(
-                    'netmask [255.255.255.0]: ', default_val='255.255.255.0')
+                    'netmask [255.255.255.0]: ', default_val='255.255.255.0',
+                    check=_check_netmask(user_conf[roler + '_nic_ip']))
                 if roler == 'mgt':
-                    # hack: 192.168.3.157 --> 192.168.3.1
-                    default_gw = '.'.join(
-                        i for i in user_conf['mgt_nic_ip'].split('.')[0:3]) + \
-                        '.1'
+                    default_gw = utils.first_host_in_subnet(
+                        user_conf[roler + '_nic_ip'],
+                        user_conf[roler + '_nic_netmask']
+                    )
                     user_conf[roler + '_nic_gw'] = utils.ask_user(
-                        'gateway [%s]: ' % default_gw, default_val=default_gw)
+                        'gateway [%s]: ' % default_gw, default_val=default_gw,
+                        check=_check_gw(user_conf[roler + '_nic_ip'],
+                                        user_conf[roler + '_nic_netmask']))
 
         LOG.info('Stage: network configure')
         nics = sorted([i.split('/')[4] for i in
