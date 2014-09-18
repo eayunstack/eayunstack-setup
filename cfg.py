@@ -186,7 +186,30 @@ ONBOOT=yes
 
 
 def make_hostname(cfgs):
-    cfgs[2] = ESCFG('setup hostname of this host')
+    HOSTFILE = '/etc/hostname'
+
+    def ask_user(user_conf):
+        LOG.info('Stage: hostname configuration\n')
+        utils.fmt_print('==== HOSTNAME CONFIGURE ====')
+        txt = 'Do you want to set the hostname(yes, no) [yes]: '
+        set_host = utils.ask_user(txt, ('yes, no'), 'yes')
+        if set_host.lower() == 'yes':
+            txt = "Input the FQDN hostname you want to use for this host: "
+            user_conf['hostname'] = utils.ask_user(txt, check=utils.check_hostname)
+        else:
+            user_conf['hostname'] = open(HOSTFILE, 'r').read().strip()
+
+    def validation(user_conf):
+        utils.valid_print('hostname', user_conf['hostname'])
+
+    def run(user_conf):
+        open(HOSTFILE, 'w').write(user_conf['hostname'] + '\n')
+
+    ec = ESCFG('setup hostname of this host')
+    ec.ask_user = ask_user
+    ec.validation = validation
+    ec.run = run
+    cfgs[2] = ec
 
 
 def config_cinder(user_conf):
@@ -225,7 +248,7 @@ def make_openstack(cfgs):
             return
 
         LOG.info('Stage: openstack configuration\n')
-        utils.fmt_print('==== OPENSTACK CONFIGURATE ====')
+        utils.fmt_print('==== OPENSTACK CONFIGURE ====')
         while True:
             # fmt_print('Confirm admin password:')
             txt = 'The password to use for keystone admin user: '

@@ -2,6 +2,7 @@ import logging
 import socket
 import fcntl
 import struct
+import string
 
 LOG = logging.getLogger(__name__)
 
@@ -71,6 +72,23 @@ def check_gw_with_ip_and_netmask(value, ip_str, netmask_str):
         different_host = (ip & ~netmask) != (gw & ~netmask)
         return same_subnet and different_host
     return False
+
+
+def check_hostname(hostname):
+    allowed = set(string.ascii_lowercase + string.digits + '-')
+    if not hostname or len(hostname) > 255:
+        return False
+    labels = hostname.split('.')
+    if len(labels) > 3:
+        return False
+    for label in labels:
+        if len(label) > 63 or len(label) < 1:
+            return False
+        if not ((set(label) <= allowed)
+           and not label.startswith('-')
+           and not label.endswith('-')):
+            return False
+    return True
 
 
 def check_ip_list(value):
