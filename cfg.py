@@ -194,16 +194,43 @@ def make_hostname(cfgs):
         txt = 'Do you want to set the hostname(yes, no) [yes]: '
         set_host = utils.ask_user(txt, ('yes, no'), 'yes')
         if set_host.lower() == 'yes':
-            txt = "Input the FQDN hostname you want to use for this host: "
+            txt = 'Input the FQDN hostname you want to use for this host: '
             user_conf['hostname'] = utils.ask_user(txt, check=utils.check_hostname)
         else:
             user_conf['hostname'] = open(HOSTFILE, 'r').read().strip()
+        # FIXME Whether ntp server configuration sould be here?
+        LOG.info('Stage: ntp server configuration\n')
+        utils.fmt_print('==== NTP SERVER CONFIGURE ====')
+        txt = 'Do you have some local ntp server to use(yes, no) [yes]: '
+        set_ntp = utils.ask_user(txt, ('yes, no'), 'yes')
+        if set_ntp.lower() == 'yes':
+            txt = 'Input the ntp server ip(seperated by ",", eg 10.10.1.1,10.10.1,2): '
+            user_conf['ntp_server'] = utils.ask_user(txt, check=utils.check_ip)
 
     def validation(user_conf):
         utils.valid_print('hostname', user_conf['hostname'])
+        utils.valid_print('ntp server', user_conf['ntp_server'])
 
     def run(user_conf):
         open(HOSTFILE, 'w').write(user_conf['hostname'] + '\n')
+        # FIXME Whether ntp server configuration sould be here?
+        if 'ntp_server' not in user_conf.keys():
+
+            LOG.info('Checking ntpd service')
+            (_, out) = commands.getstatusoutput(
+                'systemctl is-active ntpd.service')
+            if out != 'active':
+                LOG.info('Starting ntpd service')
+                commands.getstatusoutput('systemctl start ntpd.service')
+
+            (_, out) = commands.getstatusoutput(
+                'systemctl is-enabled ntpd.service')
+            if out != 'enabled':
+                LOG.info('Enabling ntpd service')
+                commands.getstatusoutput('systemctl enable ntpd.service')
+
+            # After ntpd server started, set ntp server to the controller node.
+            user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
 
     ec = ESCFG('setup hostname of this host')
     ec.ask_user = ask_user
@@ -264,7 +291,7 @@ def make_openstack(cfgs):
                 else:
                     utils.fmt_print('Sorry, passwords do not match')
 
-        compute_hosts_txt = "IP adresses of compute hosts(separated by ',', eg '10.10.1.2,10.10.1.3'): "
+        compute_hosts_txt = "IP adresses of compute hosts(seperated by ',', eg '10.10.1.2,10.10.1.3'): "
         user_conf['compute_hosts'] = utils.ask_user(compute_hosts_txt, check=utils.check_ip_list)
 
         # cinder config
@@ -332,7 +359,8 @@ def make_openstack(cfgs):
                    'config_neutron_ovs_tunnel_if': user_conf['tun_nic'],
                    'config_provision_demo': 'n',
                    'config_mongodb_host': user_conf['mgt_nic_ip'],
-                   'config_keystone_admin_pw': user_conf['os_pwd']}
+                   'config_keystone_admin_pw': user_conf['os_pwd'],
+                   'config_ntp_servers': user_conf['ntp_server']}
         for option in configs:
             # Update options
             (status, out) = commands.getstatusoutput('/usr/bin/openstack-config --set %s general %s %s'
