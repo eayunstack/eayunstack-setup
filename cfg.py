@@ -340,10 +340,7 @@ def make_openstack(cfgs):
                 LOG.warn(out)
                 raise RuntimeError('Failed to update option %s in answer file' % option)
         # Save answer file
-        (status, out) = commands.getstatusoutput('/usr/bin/cp %s %s' % (ANSWER_FILE, '~/.eayunstack.answer'))
-        if status != 0:
-            LOG.warn(out)
-            raise RuntimeError('Failed to save answer file.')
+        os.link(ANSWER_FILE, '~/.eayunstack.answer')
         # Invoke packstack, currently not hide the output from packstack.
         LOG.info('Starting openstack deployment')
         os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
