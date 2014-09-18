@@ -296,9 +296,10 @@ def make_openstack(cfgs):
                                (user_conf['os_cinder_dev']))
 
     def packstack(user_conf):
-        ANSWER_FILE = '/tmp/eayunstack.answer'
+        TMP_ANSWER_FILE = '/tmp/eayunstack.answer'
+        ANSWER_FILE = '.eayunstack.answer'
         # Generate answer file with packstack.
-        (status, out) = commands.getstatusoutput('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
+        (status, out) = commands.getstatusoutput('/usr/bin/packstack --gen-answer-file=%s' % TMP_ANSWER_FILE)
         if status != 0:
             LOG.warn(out)
             raise RuntimeError('Failed to generate answer file')
@@ -335,12 +336,15 @@ def make_openstack(cfgs):
         for option in configs:
             # Update options
             (status, out) = commands.getstatusoutput('/usr/bin/openstack-config --set %s general %s %s'
-                                                     % (ANSWER_FILE, option, configs[option]))
+                                                     % (TMP_ANSWER_FILE, option, configs[option]))
             if status != 0:
                 LOG.warn(out)
                 raise RuntimeError('Failed to update option %s in answer file' % option)
         # Save answer file
-        os.link(ANSWER_FILE, '~/.eayunstack.answer')
+        os.chdir(os.environ['HOME'])
+        if os.path.exists(ANSWER_FILE):
+            os.unlink(ANSWER_FILE)
+        os.link(TMP_ANSWER_FILE, ANSWER_FILE)
         # Invoke packstack, currently not hide the output from packstack.
         LOG.info('Starting openstack deployment')
         os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
