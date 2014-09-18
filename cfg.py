@@ -257,61 +257,80 @@ def make_openstack(cfgs):
         if 'compute_hosts' in user_conf.keys():
             utils.valid_print('compute hosts', user_conf['compute_hosts'])
 
-    def run(user_conf):
-        def cinder_create():
-            (status, out) = commands.getstatusoutput(
-                'pvcreate %s' % user_conf['os_cinder_dev'])
-            if status == 0:
-                (status1, out1) = commands.getstatusoutput(
-                    'vgcreate cinder-volumes %s' % user_conf['os_cinder_dev'])
-                if status != 0:
-                    raise RuntimeError('failed to create cinder VG using %s' %
-                                       (user_conf['os_cinder_dev']))
-            else:
-                raise RuntimeError('failed to create cinder PV using %s' %
+    def cinder_create(user_conf):
+        (status, out) = commands.getstatusoutput(
+            'pvcreate %s' % user_conf['os_cinder_dev'])
+        if status == 0:
+            (status1, out1) = commands.getstatusoutput(
+                'vgcreate cinder-volumes %s' % user_conf['os_cinder_dev'])
+            if status1 != 0:
+                LOG.warn(out1)
+                raise RuntimeError('failed to create cinder VG using %s' %
                                    (user_conf['os_cinder_dev']))
+        else:
+            LOG.warn(out)
+            raise RuntimeError('failed to create cinder PV using %s' %
+                               (user_conf['os_cinder_dev']))
+
+    def packstack(user_conf):
+        ANSWER_FILE = '/tmp/eayunstack.answer'
+        # Generate answer file with packstack.
+        (status, out) = commands.getstatusoutput('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
+        if status != 0:
+            LOG.warn(out)
+            raise RuntimeError('Failed to generate answer file')
+        if 'cfg_mgt' not in user_conf.keys():
+            user_conf['mgt_nic_ip'] = utils.get_ipaddr(user_conf['mgt_nic'])
+
+        # cinder config
+        if user_conf['os_rdo_cinder']:
+            rdo_cinder = 'y'
+        else:
+            cinder_create(user_conf)
+            rdo_cinder = 'n'
+
+        # All opitons needed to update are here.
+        configs = {'config_swift_install': 'n',
+                   'config_controller_host': user_conf['mgt_nic_ip'],
+                   'config_compute_hosts': user_conf['compute_hosts'],
+                   'config_network_hosts': user_conf['mgt_nic_ip'],
+                   'config_use_epel': 'n',
+                   'config_amqp_host': user_conf['mgt_nic_ip'],
+                   'config_mysql_host': user_conf['mgt_nic_ip'],
+                   'config_cinder_volumes_create': rdo_cinder,
+                   'config_neutron_ml2_type_drivers': 'gre',
+                   'config_neutron_ml2_tenant_network_types': 'gre',
+                   'config_neutron_ml2_tunnel_id_ranges': '1:1000',
+                   'config_neutron_ovs_tenant_network_type': 'gre',
+                   'config_neutron_ovs_bridge_ifaces': 'br-ex:%s' % user_conf['ext_nic'],
+                   'config_neutron_ovs_tunnel_ranges': '1:1000',
+                   'config_neutron_ovs_tunnel_if': user_conf['tun_nic'],
+                   'config_provision_demo': 'n',
+                   'config_mongodb_host': user_conf['mgt_nic_ip'],
+                   'config_keystone_admin_pw': user_conf['os_pwd']}
+        for option in configs:
+            # Update options
+            (status, out) = commands.getstatusoutput('/usr/bin/openstack-config --set %s general %s %s'
+                                                     % (ANSWER_FILE, option, configs[option]))
+            if status != 0:
                 LOG.warn(out)
+                raise RuntimeError('Failed to update option %s in answer file' % option)
+        # Save answer file
+        (status, out) = commands.getstatusoutput('/usr/bin/cp %s %s' % (ANSWER_FILE, '~/.eayunstack.answer'))
+        if status != 0:
+            LOG.warn(out)
+            raise RuntimeError('Failed to save answer file.')
+        # Invoke packstack, currently not hide the output from packstack.
+        LOG.info('Starting openstack deployment')
+        os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
+        # (status, out) = commands.getstatusoutput('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
+        # if status != 0:
+        #     LOG.warn(out)
+        #     raise RuntimeError('Failed to deploy openstack')
 
+    def run(user_conf):
         if user_conf['role'] == 'controller':
-            ANSWER_FILE = '/tmp/eayunstack.answer'
-            # Generate answer file with packstack.
-            os.system('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
-            if 'cfg_mgt' not in user_conf.keys():
-                user_conf['mgt_nic_ip'] = utils.get_ipaddr(user_conf['mgt_nic'])
-
-            # cinder config
-            if user_conf['os_rdo_cinder']:
-                rdo_cinder = 'y'
-            else:
-                cinder_create()
-                rdo_cinder = 'n'
-
-            # All opitons needed to update are here.
-            configs = {'config_swift_install': 'n',
-                       'config_controller_host': user_conf['mgt_nic_ip'],
-                       'config_compute_hosts': user_conf['compute_hosts'],
-                       'config_network_hosts': user_conf['mgt_nic_ip'],
-                       'config_use_epel': 'n',
-                       'config_amqp_host': user_conf['mgt_nic_ip'],
-                       'config_mysql_host': user_conf['mgt_nic_ip'],
-                       'config_cinder_volumes_create': rdo_cinder,
-                       'config_neutron_ml2_type_drivers': 'gre',
-                       'config_neutron_ml2_tenant_network_types': 'gre',
-                       'config_neutron_ml2_tunnel_id_ranges': '1:1000',
-                       'config_neutron_ovs_tenant_network_type': 'gre',
-                       'config_neutron_ovs_bridge_ifaces': 'br-ex:%s' % user_conf['ext_nic'],
-                       'config_neutron_ovs_tunnel_ranges': '1:1000',
-                       'config_neutron_ovs_tunnel_if': user_conf['tun_nic'],
-                       'config_provision_demo': 'n',
-                       'config_mongodb_host': user_conf['mgt_nic_ip'],
-                       'config_keystone_admin_pw': user_conf['os_pwd']}
-            for option in configs:
-                # Update options
-                os.system('/usr/bin/openstack-config --set %s general %s %s' % (ANSWER_FILE, option, configs[option]))
-            # Save answer file
-            os.system('/usr/bin/cp %s %s' % (ANSWER_FILE, '~/.eayunstack.answer'))
-            # Invoke packstack
-            # os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
+            packstack(user_conf)
         elif user_conf['role'] == 'compute':
             # Don't handle compute roles at present.
             pass
