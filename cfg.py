@@ -314,6 +314,7 @@ def make_openstack(cfgs):
 
         # All opitons needed to update are here.
         configs = {'config_swift_install': 'n',
+                   'config_heat_install': 'y',
                    'config_controller_host': user_conf['mgt_nic_ip'],
                    'config_compute_hosts': user_conf['compute_hosts'],
                    'config_network_hosts': user_conf['mgt_nic_ip'],
