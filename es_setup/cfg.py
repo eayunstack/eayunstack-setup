@@ -365,7 +365,9 @@ def make_openstack(cfgs):
         shutil.copyfile(ANSWER_FILE, ANSWER_SAVE)
         # Invoke packstack, currently not hide the output from packstack.
         LOG.info('Starting openstack deployment')
-        os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
+        ret = os.system('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
+        if ret != 0:
+            raise RuntimeError('Failed to deploy openstack')
         # (status, out) = commands.getstatusoutput('/usr/bin/packstack --answer-file=%s' % ANSWER_FILE)
         # if status != 0:
         #     LOG.warn(out)
