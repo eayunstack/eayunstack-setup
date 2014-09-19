@@ -315,11 +315,14 @@ def make_openstack(cfgs):
     def packstack(user_conf):
         ANSWER_FILE = '/tmp/eayunstack.answer'
         ANSWER_SAVE = os.path.join(expanduser("~"), '.es-setup.answer')
-        # Generate answer file with packstack.
-        (status, out) = commands.getstatusoutput('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
-        if status != 0:
-            LOG.warn(out)
-            raise RuntimeError('Failed to generate answer file')
+        if os.path.exists(ANSWER_SAVE):
+            shutil.copyfile(ANSWER_SAVE, ANSWER_FILE)
+        else:
+            # Generate answer file with packstack.
+            (status, out) = commands.getstatusoutput('/usr/bin/packstack --gen-answer-file=%s' % ANSWER_FILE)
+            if status != 0:
+                LOG.warn(out)
+                raise RuntimeError('Failed to generate answer file')
         if 'cfg_mgt' not in user_conf.keys():
             user_conf['mgt_nic_ip'] = utils.get_ipaddr(user_conf['mgt_nic'])
 
