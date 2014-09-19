@@ -123,7 +123,8 @@ def make_network(cfgs):
         if user_conf['role'] in ('controller', 'network'):
             # only network node and controller node can config external nic
             _ask_ext_nic(user_conf)
-        _ask_ntp(user_conf)
+        if user_conf['role'] == 'controller':
+            _ask_ntp(user_conf)
 
     def validation(user_conf):
         utils.valid_print('Management network', user_conf['mgt_nic'])
@@ -184,14 +185,15 @@ ONBOOT=yes
         utils.service_operate('network', 'enable')
         utils.service_operate('network', 'restart')
 
-        if 'ntp_server' not in user_conf.keys():
+        if user_conf['role'] == 'controller':
+            if 'ntp_server' not in user_conf.keys():
 
-            LOG.info('Enabling ntpd service')
-            utils.service_operate('ntpd', 'enable')
-            utils.service_operate('ntpd', 'start')
+                LOG.info('Enabling ntpd service')
+                utils.service_operate('ntpd', 'enable')
+                utils.service_operate('ntpd', 'start')
 
-            # After ntpd server started, set ntp server to the controller node.
-            user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
+                # After ntpd server started, set ntp server to the controller node.
+                user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
 
     ec = ESCFG('setup network of this host')
     ec.ask_user = ask_user
