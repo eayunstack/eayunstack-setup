@@ -103,6 +103,15 @@ def make_network(cfgs):
                   "interface: %s [%s]: " % (nics, dft_nic)
             user_conf['ext_nic'] = utils.ask_user(txt, nics, dft_nic)
 
+        def _ask_ntp(user_conf):
+            LOG.info('Stage: ntp server configuration\n')
+            utils.fmt_print('==== NTP SERVER CONFIGURE ====')
+            txt = 'Do you have some local ntp servers to use(yes, no) [yes]: '
+            set_ntp = utils.ask_user(txt, ('yes, no'), 'yes')
+            if set_ntp.lower() == 'yes':
+                txt = 'Input the ntp server ip(seperated by ",", eg 10.10.1.1,10.10.1,2): '
+                user_conf['ntp_server'] = utils.ask_user(txt, check=utils.check_ip)
+
         LOG.info('Stage: network configuration')
         nics = sorted([i.split('/')[4] for i in
                        glob.glob('/sys/class/net/*/device')])
@@ -112,6 +121,7 @@ def make_network(cfgs):
         if user_conf['role'] in ('controller', 'network'):
             # only network node and controller node can config external nic
             _ask_ext_nic(user_conf)
+        _ask_ntp(user_conf)
 
     def validation(user_conf):
         utils.valid_print('Management network', user_conf['mgt_nic'])
@@ -132,6 +142,9 @@ def make_network(cfgs):
 
         if user_conf['role'] in ('controller', 'network'):
             utils.valid_print('External network', user_conf['ext_nic'])
+
+        if 'ntp_server' in user_conf.keys():
+            utils.valid_print('ntp server', user_conf['ntp_server'])
 
     def run(user_conf):
         def write_cfg(role):
@@ -178,6 +191,24 @@ ONBOOT=yes
         commands.getstatusoutput('systemctl enable network.service')
         commands.getstatusoutput('systemctl restart network.service')
 
+        if 'ntp_server' not in user_conf.keys():
+
+            LOG.info('Checking ntpd service')
+            (_, out) = commands.getstatusoutput(
+                'systemctl is-active ntpd.service')
+            if out != 'active':
+                LOG.info('Starting ntpd service')
+                commands.getstatusoutput('systemctl start ntpd.service')
+
+            (_, out) = commands.getstatusoutput(
+                'systemctl is-enabled ntpd.service')
+            if out != 'enabled':
+                LOG.info('Enabling ntpd service')
+                commands.getstatusoutput('systemctl enable ntpd.service')
+
+            # After ntpd server started, set ntp server to the controller node.
+            user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
+
     ec = ESCFG('setup network of this host')
     ec.ask_user = ask_user
     ec.validation = validation
@@ -198,39 +229,12 @@ def make_hostname(cfgs):
             user_conf['hostname'] = utils.ask_user(txt, check=utils.check_hostname)
         else:
             user_conf['hostname'] = open(HOSTFILE, 'r').read().strip()
-        # FIXME Whether ntp server configuration sould be here?
-        LOG.info('Stage: ntp server configuration\n')
-        utils.fmt_print('==== NTP SERVER CONFIGURE ====')
-        txt = 'Do you have some local ntp server to use(yes, no) [yes]: '
-        set_ntp = utils.ask_user(txt, ('yes, no'), 'yes')
-        if set_ntp.lower() == 'yes':
-            txt = 'Input the ntp server ip(seperated by ",", eg 10.10.1.1,10.10.1,2): '
-            user_conf['ntp_server'] = utils.ask_user(txt, check=utils.check_ip)
 
     def validation(user_conf):
         utils.valid_print('hostname', user_conf['hostname'])
-        utils.valid_print('ntp server', user_conf['ntp_server'])
 
     def run(user_conf):
         open(HOSTFILE, 'w').write(user_conf['hostname'] + '\n')
-        # FIXME Whether ntp server configuration sould be here?
-        if 'ntp_server' not in user_conf.keys():
-
-            LOG.info('Checking ntpd service')
-            (_, out) = commands.getstatusoutput(
-                'systemctl is-active ntpd.service')
-            if out != 'active':
-                LOG.info('Starting ntpd service')
-                commands.getstatusoutput('systemctl start ntpd.service')
-
-            (_, out) = commands.getstatusoutput(
-                'systemctl is-enabled ntpd.service')
-            if out != 'enabled':
-                LOG.info('Enabling ntpd service')
-                commands.getstatusoutput('systemctl enable ntpd.service')
-
-            # After ntpd server started, set ntp server to the controller node.
-            user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
 
     ec = ESCFG('setup hostname of this host')
     ec.ask_user = ask_user
