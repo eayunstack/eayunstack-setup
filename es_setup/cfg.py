@@ -181,8 +181,8 @@ ONBOOT=yes
             write_cfg('tun')
         # enable network directly, do we need to check it first?
         LOG.info('Restart network service')
-        utils.service_operate('NetworkManager', 'enable')
-        utils.service_operate('NetworkManager', 'restart')
+        utils.service_operate('network', 'enable')
+        utils.service_operate('network', 'restart')
 
         if 'ntp_server' not in user_conf.keys():
 
