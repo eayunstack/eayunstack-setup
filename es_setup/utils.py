@@ -3,6 +3,7 @@ import socket
 import fcntl
 import struct
 import string
+import commands
 
 LOG = logging.getLogger(__name__)
 
@@ -143,3 +144,22 @@ def get_ipaddr(ifname):
     except IOError:
         return None
     return socket.inet_ntoa(info)
+
+
+def service_operate(service, start=None):
+    # service is an available service in systemctl
+    # start&enable the service if start is True, else stop/disable it.
+    if start is None:
+        return
+    (_, out) = commands.getstatusoutput(
+        'systemctl is-active %s.service' % service)
+    if start and out != 'active':
+        commands.getstatusoutput('systemctl start %s.service' % service)
+    elif not start and out == 'active':
+        commands.getstatusoutput('systemctl stop %s.service' % service)
+    (_, out) = commands.getstatusoutput(
+        'systemctl is-enabled %s.service' % service)
+    if start and out != 'enabled':
+        commands.getstatusoutput('systemctl enable %s.service' % service)
+    elif not start and out == 'enabled':
+        commands.getstatusoutput('systemctl disable %s.service' % service)
