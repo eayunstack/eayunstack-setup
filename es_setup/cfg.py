@@ -227,14 +227,17 @@ def make_hostname(cfgs):
         if set_host.lower() == 'yes':
             txt = 'Input the FQDN hostname you want to use for this host: '
             user_conf['hostname'] = utils.ask_user(txt, check=utils.check_hostname)
-        else:
-            user_conf['hostname'] = open(HOSTFILE, 'r').read().strip()
 
     def validation(user_conf):
-        utils.valid_print('hostname', user_conf['hostname'])
+        if 'hostname' in user_conf.keys():
+            utils.valid_print('hostname', user_conf['hostname'])
 
     def run(user_conf):
-        open(HOSTFILE, 'w').write(user_conf['hostname'] + '\n')
+        if 'hostname' in user_conf.keys():
+            open(HOSTFILE, 'w').write(user_conf['hostname'] + '\n')
+        else:
+            # Get hostname from /etc/hostname if user has set it manually.
+            user_conf['hostname'] = open(HOSTFILE, 'r').read().strip()
 
     ec = ESCFG('setup hostname of this host')
     ec.ask_user = ask_user
