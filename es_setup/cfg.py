@@ -170,18 +170,8 @@ ONBOOT=yes
             with file(CFG_FILE % user_conf[role + '_nic'], 'w') as f:
                 f.write(CFG_FMT % tuple(CFG_VAL))
 
-        LOG.info('Checking NetworkManager service')
-        (status, out) = commands.getstatusoutput(
-            'systemctl is-active NetworkManager.service')
-        if out == 'active':
-            LOG.info('Stop NetworkManager service')
-            commands.getstatusoutput('systemctl stop NetworkManager.service')
-
-        (status, out) = commands.getstatusoutput(
-            'systemctl is-enabled NetworkManager.service')
-        if out == 'enabled':
-            LOG.info('Disable NetworkManager service')
-            commands.getstatusoutput('systemctl disable NetworkManager.service')
+        LOG.info('Disabling NetworkManager service')
+        utils.service_operate('NetworkManager', start=False)
 
         LOG.info('Write network config file')
         if 'cfg_mgt' in user_conf.keys() and user_conf['cfg_mgt']:
@@ -195,18 +185,8 @@ ONBOOT=yes
 
         if 'ntp_server' not in user_conf.keys():
 
-            LOG.info('Checking ntpd service')
-            (_, out) = commands.getstatusoutput(
-                'systemctl is-active ntpd.service')
-            if out != 'active':
-                LOG.info('Starting ntpd service')
-                commands.getstatusoutput('systemctl start ntpd.service')
-
-            (_, out) = commands.getstatusoutput(
-                'systemctl is-enabled ntpd.service')
-            if out != 'enabled':
-                LOG.info('Enabling ntpd service')
-                commands.getstatusoutput('systemctl enable ntpd.service')
+            LOG.info('Enabling ntpd service')
+            utils.service_operate('ntpd', start=True)
 
             # After ntpd server started, set ntp server to the controller node.
             user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
