@@ -113,6 +113,8 @@ def make_network(cfgs):
             if set_ntp.lower() == 'yes':
                 txt = 'Input the ntp server ip(seperated by ",", eg 10.10.1.1,10.10.1,2): '
                 user_conf['ntp_server'] = utils.ask_user(txt, check=utils.check_ip_list)
+            else:
+                user_conf['ntp_server'] = ''
 
         LOG.info('Stage: network configuration')
         nics = sorted([i.split('/')[4] for i in
@@ -146,7 +148,7 @@ def make_network(cfgs):
         if user_conf['role'] in ('controller', 'network'):
             utils.valid_print('External network', user_conf['ext_nic'])
 
-        if 'ntp_server' in user_conf.keys():
+        if 'ntp_server' in user_conf.keys() and user_conf['ntp_server']:
             utils.valid_print('ntp server', user_conf['ntp_server'])
 
     def run(user_conf):
@@ -185,15 +187,15 @@ ONBOOT=yes
         utils.service_operate('network', 'enable')
         utils.service_operate('network', 'restart')
 
-        if user_conf['role'] == 'controller':
-            if 'ntp_server' not in user_conf.keys():
+        # if user_conf['role'] == 'controller':
+        #     if 'ntp_server' not in user_conf.keys():
 
-                LOG.info('Enabling ntpd service')
-                utils.service_operate('ntpd', 'enable')
-                utils.service_operate('ntpd', 'start')
+        #         LOG.info('Enabling ntpd service')
+        #         utils.service_operate('ntpd', 'enable')
+        #         utils.service_operate('ntpd', 'start')
 
-                # After ntpd server started, set ntp server to the controller node.
-                user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
+        #         # After ntpd server started, set ntp server to the controller node.
+        #         user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])
 
     ec = ESCFG('setup network of this host')
     ec.ask_user = ask_user
