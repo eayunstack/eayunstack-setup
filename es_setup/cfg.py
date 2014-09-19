@@ -222,6 +222,10 @@ def make_hostname(cfgs):
         if 'hostname' in user_conf.keys():
             # FIXME, during second time deployment, shouldn't set hostname here.
             open(HOSTFILE, 'w').write(user_conf['hostname'] + '\n')
+            (status, out) = commands.getstatusoutput('hostname %s' % user_conf['hostname'])
+            if status != 0:
+                LOG.warn(out)
+                raise RuntimeError('Failed to update hostname')
         else:
             # Get hostname from /etc/hostname if user has set it manually.
             user_conf['hostname'] = open(HOSTFILE, 'r').read().strip()
