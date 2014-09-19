@@ -225,7 +225,6 @@ def make_hostname(cfgs):
             (status, out) = commands.getstatusoutput('/usr/bin/hostname %s' % user_conf['hostname'])
             if status != 0:
                 LOG.warn(out)
-                raise RuntimeError('Failed to update hostname')
         else:
             # Get hostname from /etc/hostname if user has set it manually.
             user_conf['hostname'] = open(HOSTFILE, 'r').read().strip()
