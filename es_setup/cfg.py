@@ -236,18 +236,22 @@ def make_hostname(cfgs):
     cfgs[2] = ec
 
 
-def config_cinder(user_conf):
-    CINDER_VOLUME_NAME = 'cinder-volumes'
-    # whether we need to set CONFIG_CINDER_VOLUMES_CREATE yes or no
-    user_conf['os_rdo_cinder'] = True
-    cinder_vg_found = False
+CINDER_VOLUME_NAME = 'cinder-volumes'
+
+
+def cinder_volume_exist():
     (status, out) = commands.getstatusoutput('vgs')
     if status == 0:
         for i in out.split('\n'):
             if i.split()[0] == CINDER_VOLUME_NAME:
-                user_conf['os_cinder'] = False
-                cinder_vg_found = True
-    if not cinder_vg_found:
+                return True
+    return False
+
+
+def config_cinder(user_conf):
+    # whether we need to set CONFIG_CINDER_VOLUMES_CREATE yes or no
+    user_conf['os_rdo_cinder'] = not cinder_volume_exist()
+    if not user_conf['os_rdo_cinder']:
         LOG.warn('No cinder volume group(%s) found' % CINDER_VOLUME_NAME)
         txt = 'Do you want to create cinder volume group now(yes, no) [yes]: '
         cfg_cinder = utils.ask_user(txt, ('yes, no'), 'yes')
@@ -256,13 +260,6 @@ def config_cinder(user_conf):
             cinder_dev = utils.ask_user(txt, check=lambda x: os.path.exists(x))
             user_conf['os_cinder_dev'] = cinder_dev
             user_conf['os_rdo_cinder'] = False
-            # (status, out) = commands.getstatusoutput('pvcreate %s' % cinder_dev)
-            # if status == 0:
-            #     (status1, out1) = commands.getstatusoutput('vgcreate cinder-volumes %s' % cinder_dev)
-            #     if status != 0:
-            #         LOG.warn(out1)
-            # else:
-            #     LOG.warn(out)
 
 
 def make_openstack(cfgs):
@@ -337,7 +334,11 @@ def make_openstack(cfgs):
         if user_conf['os_rdo_cinder']:
             rdo_cinder = 'y'
         else:
-            cinder_create(user_conf)
+            # Please NOTE: if use setups eayunstack multi-times and uses
+            # previous ~/.es-setup.cfg, Cinder volume maybe
+            # configurated already, so we must check it before config volume
+            if not cinder_volume_exist():
+                cinder_create(user_conf)
             rdo_cinder = 'n'
 
         # All opitons needed to update are here.
