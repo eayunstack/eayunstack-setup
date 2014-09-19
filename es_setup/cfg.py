@@ -171,7 +171,8 @@ ONBOOT=yes
                 f.write(CFG_FMT % tuple(CFG_VAL))
 
         LOG.info('Disabling NetworkManager service')
-        utils.service_operate('NetworkManager', start=False)
+        utils.service_operate('NetworkManager', 'stop')
+        utils.service_operate('NetworkManager', 'disable')
 
         LOG.info('Write network config file')
         if 'cfg_mgt' in user_conf.keys() and user_conf['cfg_mgt']:
@@ -180,13 +181,14 @@ ONBOOT=yes
             write_cfg('tun')
         # enable network directly, do we need to check it first?
         LOG.info('Restart network service')
-        commands.getstatusoutput('systemctl enable network.service')
-        commands.getstatusoutput('systemctl restart network.service')
+        utils.service_operate('NetworkManager', 'enable')
+        utils.service_operate('NetworkManager', 'restart')
 
         if 'ntp_server' not in user_conf.keys():
 
             LOG.info('Enabling ntpd service')
-            utils.service_operate('ntpd', start=True)
+            utils.service_operate('ntpd', 'enable')
+            utils.service_operate('ntpd', 'start')
 
             # After ntpd server started, set ntp server to the controller node.
             user_conf['ntp_server'] = utils.get_ipaddr(user_conf['mgt_nic'])

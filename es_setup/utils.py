@@ -146,20 +146,24 @@ def get_ipaddr(ifname):
     return socket.inet_ntoa(info)
 
 
-def service_operate(service, start=None):
+def service_operate(service, op):
     # service is an available service in systemctl
     # start&enable the service if start is True, else stop/disable it.
-    if start is None:
-        return
-    (_, out) = commands.getstatusoutput(
-        'systemctl is-active %s.service' % service)
-    if start and out != 'active':
-        commands.getstatusoutput('systemctl start %s.service' % service)
-    elif not start and out == 'active':
-        commands.getstatusoutput('systemctl stop %s.service' % service)
-    (_, out) = commands.getstatusoutput(
-        'systemctl is-enabled %s.service' % service)
-    if start and out != 'enabled':
-        commands.getstatusoutput('systemctl enable %s.service' % service)
-    elif not start and out == 'enabled':
-        commands.getstatusoutput('systemctl disable %s.service' % service)
+    if op == 'start':
+        (_, out) = commands.getstatusoutput('systemctl is-active %s.service' % service)
+        if out != 'active':
+            commands.getstatusoutput('systemctl start %s.service' % service)
+    elif op == 'stop':
+        (_, out) = commands.getstatusoutput('systemctl is-active %s.service' % service)
+        if out != 'inactive':
+            commands.getstatusoutput('systemctl stop %s.service' % service)
+    elif op == 'restart':
+        commands.getstatusoutput('systemctl restart %s.service' % service)
+    elif op == 'enable':
+        (_, out) = commands.getstatusoutput('systemctl is-enabled %s.service' % service)
+        if out != 'enabled':
+            commands.getstatusoutput('systemctl enable %s.service' % service)
+    elif op == 'disable':
+        (_, out) = commands.getstatusoutput('systemctl is-enabled %s.service' % service)
+        if out != 'disabled':
+            commands.getstatusoutput('systemctl disable %s.service' % service)
