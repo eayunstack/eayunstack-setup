@@ -93,17 +93,17 @@ def check_ip_list(value):
     return reduce(lambda x, y: x and y, map(check_ip, value.split(',')))
 
 
-def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,
+def ask_user(prompt, accept_value=None, default_val=None, err_prompt=None,
              check=None):
     """ ask user, then get a config value, note: accept must be lower case """
     while True:
-        value = raw_input(fmt_msg(promtp))
+        value = raw_input(fmt_msg(prompt))
 
         if value:
             # if value is not null and not acceptable, ignore
             if accept_value and value.lower() not in accept_value:
-                if err_promtp:
-                    fmt_print(err_promtp)
+                if err_prompt:
+                    fmt_print(err_prompt)
                 else:
                     fmt_print('you must input one of %s' % str(accept_value))
                 continue
@@ -115,8 +115,8 @@ def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,
                 value = default_val
         # if it is running here, it indicate that we get a acceptable value
         if check and not check(value):
-            if err_promtp:
-                LOG.warn(err_promtp)
+            if err_prompt:
+                LOG.warn(err_prompt)
             else:
                 LOG.warn('invalid input')
             continue
