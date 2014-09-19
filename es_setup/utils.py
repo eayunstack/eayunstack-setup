@@ -90,13 +90,7 @@ def check_hostname(hostname):
 
 
 def check_ip_list(value):
-    if ',' in value:
-        for i in value.split(','):
-            if not check_ip(i):
-                return False
-        return True
-    else:
-        return check_ip(value)
+    return reduce(lambda x, y: x and y, map(check_ip, value.split(',')))
 
 
 def ask_user(promtp, accept_value=None, default_val=None, err_promtp=None,

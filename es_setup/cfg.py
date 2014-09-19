@@ -112,7 +112,7 @@ def make_network(cfgs):
             set_ntp = utils.ask_user(txt, ('yes, no'), 'yes')
             if set_ntp.lower() == 'yes':
                 txt = 'Input the ntp server ip(seperated by ",", eg 10.10.1.1,10.10.1,2): '
-                user_conf['ntp_server'] = utils.ask_user(txt, check=utils.check_ip)
+                user_conf['ntp_server'] = utils.ask_user(txt, check=utils.check_ip_list)
 
         LOG.info('Stage: network configuration')
         nics = sorted([i.split('/')[4] for i in
