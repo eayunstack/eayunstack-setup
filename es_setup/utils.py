@@ -75,13 +75,10 @@ def check_gw_with_ip_and_netmask(value, ip_str, netmask_str):
 
 
 def check_hostname(hostname):
-    allowed = set(string.ascii_lowercase + string.digits + '-')
+    allowed = set(string.ascii_letters + string.digits + '-')
     if not hostname or len(hostname) > 255:
         return False
-    labels = hostname.split('.')
-    if len(labels) > 3:
-        return False
-    for label in labels:
+    for label in hostname.split('.'):
         if len(label) > 63 or len(label) < 1:
             return False
         if not ((set(label) <= allowed)
