@@ -16,7 +16,8 @@ def main():
     set_logger()
     cfgs = dict()
     entry_points = [
-        (e.name, e.load()) for e in pkg_resources.iter_entry_points('cfg')
+        (e.name, e.load()) for e in pkg_resources.iter_entry_points(
+            'es_setup.cfg')
     ]
     for (_, fn) in entry_points:
         fn(cfgs)
